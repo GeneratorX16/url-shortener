@@ -1,25 +1,38 @@
 import requests
 from fastapi import FastAPI
-from fastapi.responses import Response, RedirectResponse
+from fastapi.responses import Response, RedirectResponse,JSONResponse
 import redis
 import hashlib
 from urllib.parse import urljoin, urlparse
 from enum import Enum
+from fastapi.middleware.cors import CORSMiddleware
+
 
 APP_HOSTNAME = "localhost:8000"
 REDIS_HOSTNAME = "localhost"
 REDIS_PORT = 6379
 
-class ErrorMessage(Enum):
+class ResponseMessage(Enum):
     INVALID_URL = "Invalid URL or URL does not exist"
     SAME_DOMAIN = "Cannot shorten URL from my domain"
     UNKNOWN_ERROR = "An error occurred in validating the url"
+    DOES_NOT_EXIST = "Shortened URL not found"
+    OK = "Ok"
+
 
 r = redis.Redis(host=REDIS_HOSTNAME, port=REDIS_PORT, decode_responses=True)
 
 base_url = f"http://{APP_HOSTNAME}"
 BASE_LENGTH = 7
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins="*",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def hash_url(url: str, hash_len=BASE_LENGTH) -> str:
     hash_obj = hashlib.sha256()
@@ -48,29 +61,33 @@ def shorten_url(url: str):
 def check_url_validity(url):
     try: 
         if (urlparse(url).netloc == APP_HOSTNAME):
-            return ErrorMessage.SAME_DOMAIN
-        
+            return ResponseMessage.SAME_DOMAIN
         if requests.head(url).status_code == 404:
-            return ErrorMessage.INVALID_URL
+            return ResponseMessage.INVALID_URL
     except:
-        return ErrorMessage.INVALID_URL
-    return True
+        return ResponseMessage.INVALID_URL
+    return ResponseMessage.OK
 
 
-@app.post("/shorten")
+@app.post("/")
 async def read_url(url: str):
+    source = r.get(url)
+    if source:
+        return source
     is_valid = check_url_validity(url)
-    if type(is_valid) == bool and is_valid:
+
+    if is_valid == ResponseMessage.OK:
         return shorten_url(url)
     
-    return Response(content=is_valid.value, status_code=400)
+    return JSONResponse(content={"message": is_valid.value}, status_code=400)
 
 @app.get("/{digest}")
 async def redirect_to_source(digest: str):
+    print("Redirecting")
     source = r.get(digest)
     if (source):
         return RedirectResponse(source, status_code=302)
-    return Response(status_code=404)
+    return JSONResponse({"message": ResponseMessage.DOES_NOT_EXIST}, status_code=404)
 
 if __name__ == "__main__":
     while True:
