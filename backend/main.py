@@ -1,16 +1,15 @@
 import requests
 from fastapi import FastAPI
-from fastapi.responses import Response, RedirectResponse,JSONResponse
+from fastapi.responses import RedirectResponse,JSONResponse
 import redis
 import hashlib
 from urllib.parse import urljoin, urlparse
 from enum import Enum
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+import os
 
-
-APP_HOSTNAME = "localhost:8000"
-REDIS_HOSTNAME = "localhost"
-REDIS_PORT = 6379
+load_dotenv()
 
 class ResponseMessage(Enum):
     INVALID_URL = "Invalid URL or URL does not exist"
@@ -20,9 +19,9 @@ class ResponseMessage(Enum):
     OK = "Ok"
 
 
-r = redis.Redis(host=REDIS_HOSTNAME, port=REDIS_PORT, decode_responses=True)
+r = redis.Redis(host=os.getenv("REDIS_HOSTNAME"), port=os.getenv("REDIS_PORT"), decode_responses=True)
 
-base_url = f"http://{APP_HOSTNAME}"
+base_url = f"http://{os.getenv("APP_HOSTNAME")}"
 BASE_LENGTH = 7
 app = FastAPI()
 
@@ -60,9 +59,10 @@ def shorten_url(url: str):
 
 def check_url_validity(url):
     try: 
-        if (urlparse(url).netloc == APP_HOSTNAME):
+        if (urlparse(url).netloc == os.getenv("APP_HOSTNAME")):
             return ResponseMessage.SAME_DOMAIN
         if requests.head(url).status_code == 404:
+            print("URL points to no kown locatin")
             return ResponseMessage.INVALID_URL
     except:
         return ResponseMessage.INVALID_URL
@@ -77,7 +77,8 @@ async def read_url(url: str):
     is_valid = check_url_validity(url)
 
     if is_valid == ResponseMessage.OK:
-        return shorten_url(url)
+        res_url =  shorten_url(url)
+        return JSONResponse(content={"input": url, "output": res_url})
     
     return JSONResponse(content={"message": is_valid.value}, status_code=400)
 
