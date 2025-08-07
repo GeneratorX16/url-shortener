@@ -1,0 +1,27 @@
+services:
+  backend:
+    build: backend
+    hostname: engine
+    expose:
+      - 80
+    ports:
+      - 80:80
+    networks:
+      default:
+        aliases:
+          - backend
+
+  redis:
+    image: "redis:latest"
+    ports:
+    - 6379:6379
+    networks:
+      default:
+        aliases:
+         - redis
+         
+  frontend:
+    build: frontend
+    hostname: user
+    ports:
+      - 8080:8080

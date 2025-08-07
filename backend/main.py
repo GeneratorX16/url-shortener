@@ -21,6 +21,7 @@ class ResponseMessage(Enum):
 
 r = redis.Redis(host=os.getenv("REDIS_HOSTNAME"), port=os.getenv("REDIS_PORT"), decode_responses=True)
 
+print(f"Listening to redis on {os.getenv("REDIS_HOSTNAME")}:{os.getenv("REDIS_PORT")}")
 base_url = f"http://{os.getenv("APP_HOSTNAME")}"
 BASE_LENGTH = 7
 app = FastAPI()
@@ -88,7 +89,7 @@ async def redirect_to_source(digest: str):
     source = r.get(digest)
     if (source):
         return RedirectResponse(source, status_code=302)
-    return JSONResponse({"message": ResponseMessage.DOES_NOT_EXIST}, status_code=404)
+    return JSONResponse({"message": ResponseMessage.DOES_NOT_EXIST.value}, status_code=404)
 
 if __name__ == "__main__":
     while True:

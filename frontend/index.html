@@ -14,15 +14,21 @@
     const submitBtn = document.querySelector('button');
     const input = document.querySelector('input');
     const output = document.querySelector('#result');
+    const url = window.location.href;
 
     submitBtn.addEventListener('click', async () => {
         const inputText = input.value;
-        const url = new URL(`http://localhost:8000/?url=${inputText}`);
-        const res = await fetch(url, {
-            method: "POST"
+        const url = new URL(window.location.href);
+        const res = await fetch(`${url}api?url=${input.value}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            }
         });
+
         const result = await res.json();
-        output.textContent = result["output"];
+        const shortenedUrl = result["output"] || "An Error Occurred";
+        output.textContent = shortenedUrl;
     })
 </script>
 
